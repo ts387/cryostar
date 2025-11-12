@@ -297,7 +297,15 @@ def train():
                               shuffle=True,
                               num_workers=cfg.data_loader.workers_per_gpu)
 
-    trainer = pl.Trainer(accelerator="gpu" if torch.cuda.is_available() else "cpu",
+    # Detect available accelerator: MPS (Apple Silicon), CUDA (NVIDIA), or CPU
+    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        accelerator = "mps"
+    elif torch.cuda.is_available():
+        accelerator = "gpu"
+    else:
+        accelerator = "cpu"
+
+    trainer = pl.Trainer(accelerator=accelerator,
                          strategy=DDPStrategy(find_unused_parameters=True),
                          logger=False,
                          enable_checkpointing=False,

@@ -40,7 +40,11 @@ def set_seed(seed: int = 42):
     # Set the seed for general torch operations
     torch.manual_seed(seed)
     # Set the seed for CUDA torch operations (ones that happen on the GPU)
-    torch.cuda.manual_seed_all(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    # Set the seed for MPS (Apple Silicon) operations
+    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        torch.mps.manual_seed(seed)
 
 
 def chain(arg, *funcs):

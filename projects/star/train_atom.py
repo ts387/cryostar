@@ -687,12 +687,20 @@ def train():
 
     em_task = CryoEMTask(cfg, dataset)
 
+    # Detect available accelerator: MPS (Apple Silicon), CUDA (NVIDIA), or CPU
+    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        accelerator = "mps"
+    elif torch.cuda.is_available():
+        accelerator = "gpu"
+    else:
+        accelerator = "cpu"
+
     if not cfg.eval_mode and cfg.do_ref_init:
         init_task = InitTask(em_task)
         # if you meet libibverbs warnings, try process_group_backend="gloo"
         init_trainer = pl.Trainer(max_epochs=3,
                                   devices=cfg.trainer.devices,
-                                  accelerator="gpu" if torch.cuda.is_available() else "cpu",
+                                  accelerator=accelerator,
                                   precision=cfg.trainer.precision,
                                   strategy=DDPStrategy(process_group_backend="nccl", find_unused_parameters=True),
                                   logger=False,
@@ -703,7 +711,7 @@ def train():
 
         init_trainer.fit(init_task, train_dataloaders=train_loader)
 
-    em_trainer = pl.Trainer(accelerator="gpu" if torch.cuda.is_available() else "cpu",
+    em_trainer = pl.Trainer(accelerator=accelerator,
                             strategy=DDPStrategy(process_group_backend="nccl"),
                             logger=False,
                             enable_checkpointing=False,

@@ -8,6 +8,16 @@ import torch
 from torch import nn
 
 
+def _get_autocast_device_type():
+    """Get the appropriate device type for autocast based on available hardware."""
+    if torch.cuda.is_available():
+        return "cuda"
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        return "cpu"  # MPS doesn't support autocast yet, fallback to cpu
+    else:
+        return "cpu"
+
+
 def init_weights_requ(m):
     if type(m) == nn.Linear:
         if hasattr(m, 'weight'):
@@ -190,7 +200,7 @@ class PositionalEncoding(nn.Module):
             return ret
 
     def forward(self, tensor) -> torch.Tensor:
-        with torch.autocast("cuda", enabled=False):
+        with torch.autocast(_get_autocast_device_type(), enabled=False):
             assert tensor.dtype == torch.float32
             if self.pe_type == "no":
                 return tensor
