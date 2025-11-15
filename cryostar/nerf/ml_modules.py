@@ -7,15 +7,7 @@ import einops
 import torch
 from torch import nn
 
-
-def _get_autocast_device_type():
-    """Get the appropriate device type for autocast based on available hardware."""
-    if torch.cuda.is_available():
-        return "cuda"
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        return "cpu"  # MPS doesn't support autocast yet, fallback to cpu
-    else:
-        return "cpu"
+from cryostar.utils.device_utils import get_autocast_device_type
 
 
 def init_weights_requ(m):
@@ -200,7 +192,7 @@ class PositionalEncoding(nn.Module):
             return ret
 
     def forward(self, tensor) -> torch.Tensor:
-        with torch.autocast(_get_autocast_device_type(), enabled=False):
+        with torch.autocast(get_autocast_device_type(), enabled=False):
             assert tensor.dtype == torch.float32
             if self.pe_type == "no":
                 return tensor

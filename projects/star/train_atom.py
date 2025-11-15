@@ -28,6 +28,7 @@ from cryostar.utils.ctf_utils import CTFRelion, CTFCryoDRGN
 from cryostar.utils.losses import calc_cor_loss, calc_kl_loss
 from cryostar.utils.misc import log_to_current, \
     pl_init_exp, pretty_dict, set_seed, warmup
+from cryostar.utils.device_utils import get_accelerator, get_distributed_backend
 from cryostar.utils.pdb_tools import bt_save_pdb
 from cryostar.gmm.gmm import EMAN2Grid, batch_projection, Gaussian
 from cryostar.gmm.deformer import E3Deformer, NMADeformer
@@ -688,21 +689,17 @@ def train():
     em_task = CryoEMTask(cfg, dataset)
 
     # Detect available accelerator: MPS (Apple Silicon), CUDA (NVIDIA), or CPU
-    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        accelerator = "mps"
-    elif torch.cuda.is_available():
-        accelerator = "gpu"
-    else:
-        accelerator = "cpu"
+    accelerator = get_accelerator()
+    backend = get_distributed_backend(accelerator)
 
     if not cfg.eval_mode and cfg.do_ref_init:
         init_task = InitTask(em_task)
-        # if you meet libibverbs warnings, try process_group_backend="gloo"
+        # Use appropriate backend: NCCL for CUDA, Gloo for MPS/CPU
         init_trainer = pl.Trainer(max_epochs=3,
                                   devices=cfg.trainer.devices,
                                   accelerator=accelerator,
                                   precision=cfg.trainer.precision,
-                                  strategy=DDPStrategy(process_group_backend="nccl", find_unused_parameters=True),
+                                  strategy=DDPStrategy(process_group_backend=backend, find_unused_parameters=True),
                                   logger=False,
                                   enable_checkpointing=False,
                                   enable_model_summary=False,
@@ -712,7 +709,7 @@ def train():
         init_trainer.fit(init_task, train_dataloaders=train_loader)
 
     em_trainer = pl.Trainer(accelerator=accelerator,
-                            strategy=DDPStrategy(process_group_backend="nccl"),
+                            strategy=DDPStrategy(process_group_backend=backend),
                             logger=False,
                             enable_checkpointing=False,
                             enable_model_summary=False,

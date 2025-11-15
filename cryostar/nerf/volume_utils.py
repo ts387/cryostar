@@ -5,16 +5,7 @@ from cryostar.utils.transforms import shift_coords
 from cryostar.nerf.ml_modules import FourierNet
 from cryostar.utils.misc import create_sphere_mask, create_circular_mask
 from cryostar.utils.fft_utils import batch_hartley_to_fourier_2d, hartley_to_fourier_3d, fourier_to_primal_3d
-
-
-def _get_autocast_device_type():
-    """Get the appropriate device type for autocast based on available hardware."""
-    if torch.cuda.is_available():
-        return "cuda"
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        return "cpu"  # MPS doesn't support autocast yet, fallback to cpu
-    else:
-        return "cpu"
+from cryostar.utils.device_utils import get_autocast_device_type
 
 
 class ImplicitFourierVolume(nn.Module):
@@ -78,7 +69,7 @@ class ImplicitFourierVolume(nn.Module):
             assert z is None
         batch_sz = rotmat.shape[0]
 
-        with torch.autocast(_get_autocast_device_type(), enabled=False):
+        with torch.autocast(get_autocast_device_type(), enabled=False):
             assert self.plane_coords.dtype == torch.float32
             assert rotmat.dtype == torch.float32
             rot_plane_coords = torch.bmm(self.plane_coords.repeat(batch_sz, 1, 1), rotmat)  # B, img_sz^2, 3
@@ -107,7 +98,7 @@ class ImplicitFourierVolume(nn.Module):
 
     def make_volume(self, z):
         with torch.no_grad():
-            with torch.autocast(_get_autocast_device_type(), enabled=False):
+            with torch.autocast(get_autocast_device_type(), enabled=False):
                 coords = self.coords_3d.unsqueeze(0)
                 num_coords = coords.shape[1]
                 chunk_size = 128**2 * 32

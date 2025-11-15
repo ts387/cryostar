@@ -4,23 +4,14 @@ import functools
 import torch
 
 from cryostar.utils.misc import create_sphere_mask, create_circular_mask
-
-
-def _get_autocast_device_type():
-    """Get the appropriate device type for autocast based on available hardware."""
-    if torch.cuda.is_available():
-        return "cuda"
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        return "cpu"  # MPS doesn't support autocast yet, fallback to cpu
-    else:
-        return "cpu"
+from cryostar.utils.device_utils import get_autocast_device_type
 
 
 def _autocast_decorator(func):
     """Decorator that applies autocast with the appropriate device type."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        with torch.autocast(_get_autocast_device_type()):
+        with torch.autocast(get_autocast_device_type()):
             return func(*args, **kwargs)
     return wrapper
 """
@@ -178,7 +169,7 @@ def hartley_to_primal_3d(h):
 
 @_autocast_decorator
 def primal_to_fourier_2d(r: torch.Tensor) -> torch.Tensor:
-    with torch.autocast(_get_autocast_device_type(), enabled=False):
+    with torch.autocast(get_autocast_device_type(), enabled=False):
         r = torch.fft.ifftshift(r.float(), dim=(-2, -1))
         f = torch.fft.fftshift(torch.fft.fftn(r, s=(r.shape[-2], r.shape[-1]), dim=(-2, -1)), dim=(-2, -1))
     return f
@@ -186,7 +177,7 @@ def primal_to_fourier_2d(r: torch.Tensor) -> torch.Tensor:
 
 @_autocast_decorator
 def primal_to_fourier_3d(r: torch.Tensor) -> torch.Tensor:
-    with torch.autocast(_get_autocast_device_type(), enabled=False):
+    with torch.autocast(get_autocast_device_type(), enabled=False):
         r = torch.fft.ifftshift(r.float(), dim=(-3, -2, -1))
         f = torch.fft.fftshift(torch.fft.fftn(r, s=(r.shape[-3], r.shape[-2], r.shape[-1]), dim=(-3, -2, -1)),
                                dim=(-3, -2, -1))
