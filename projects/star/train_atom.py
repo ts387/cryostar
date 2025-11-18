@@ -28,7 +28,7 @@ from cryostar.utils.ctf_utils import CTFRelion, CTFCryoDRGN
 from cryostar.utils.losses import calc_cor_loss, calc_kl_loss
 from cryostar.utils.misc import log_to_current, \
     pl_init_exp, pretty_dict, set_seed, warmup
-from cryostar.utils.device_utils import get_accelerator, get_distributed_backend
+from cryostar.utils.device_utils import get_accelerator, get_distributed_backend, supports_distributed
 from cryostar.utils.pdb_tools import bt_save_pdb
 from cryostar.gmm.gmm import EMAN2Grid, batch_projection, Gaussian
 from cryostar.gmm.deformer import E3Deformer, NMADeformer
@@ -690,16 +690,25 @@ def train():
 
     # Detect available accelerator: MPS (Apple Silicon), CUDA (NVIDIA), or CPU
     accelerator = get_accelerator()
-    backend = get_distributed_backend(accelerator)
+
+    # MPS doesn't support distributed training - use auto strategy for single device
+    # CUDA/CPU can use DDP for multi-GPU/multi-process training
+    if supports_distributed(accelerator):
+        backend = get_distributed_backend(accelerator)
+        strategy = DDPStrategy(process_group_backend=backend, find_unused_parameters=True)
+        strategy_simple = DDPStrategy(process_group_backend=backend)
+    else:
+        # MPS: single-device training only
+        strategy = "auto"
+        strategy_simple = "auto"
 
     if not cfg.eval_mode and cfg.do_ref_init:
         init_task = InitTask(em_task)
-        # Use appropriate backend: NCCL for CUDA, Gloo for MPS/CPU
         init_trainer = pl.Trainer(max_epochs=3,
                                   devices=cfg.trainer.devices,
                                   accelerator=accelerator,
                                   precision=cfg.trainer.precision,
-                                  strategy=DDPStrategy(process_group_backend=backend, find_unused_parameters=True),
+                                  strategy=strategy,
                                   logger=False,
                                   enable_checkpointing=False,
                                   enable_model_summary=False,
@@ -709,7 +718,7 @@ def train():
         init_trainer.fit(init_task, train_dataloaders=train_loader)
 
     em_trainer = pl.Trainer(accelerator=accelerator,
-                            strategy=DDPStrategy(process_group_backend=backend),
+                            strategy=strategy_simple,
                             logger=False,
                             enable_checkpointing=False,
                             enable_model_summary=False,

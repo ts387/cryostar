@@ -5,15 +5,29 @@ This module provides unified device detection for CUDA (NVIDIA), MPS (Apple Sili
 and CPU backends, along with helpers for distributed training configuration.
 """
 
+import functools
 import warnings
 from typing import Tuple
 
 import torch
 
 
+__all__ = [
+    'get_autocast_device_type',
+    'get_accelerator',
+    'get_distributed_backend',
+    'supports_distributed',
+    'validate_device_config',
+    'get_device_info',
+]
+
+
+@functools.lru_cache(maxsize=1)
 def get_autocast_device_type() -> str:
     """
     Get the appropriate device type for autocast based on available hardware.
+
+    This function is cached to avoid repeated device detection overhead in hot paths.
 
     Returns
     -------
@@ -28,6 +42,11 @@ def get_autocast_device_type() -> str:
 
     The function includes error handling to gracefully fallback to CPU if device
     detection fails.
+
+    Warning
+    -------
+    Result is cached on first call. If devices change during runtime (rare),
+    restart the Python process.
     """
     try:
         if torch.cuda.is_available():
@@ -42,9 +61,12 @@ def get_autocast_device_type() -> str:
     return "cpu"
 
 
+@functools.lru_cache(maxsize=1)
 def get_accelerator() -> str:
     """
     Detect the best available hardware accelerator.
+
+    This function is cached to avoid repeated device detection overhead.
 
     Returns
     -------
@@ -57,6 +79,15 @@ def get_accelerator() -> str:
     1. MPS (Apple Silicon) - if available
     2. GPU/CUDA (NVIDIA) - if available
     3. CPU - fallback
+
+    Note: MPS is prioritized over CUDA when both are available (rare scenario).
+    This prioritizes native Apple Silicon support. If CUDA performance is preferred,
+    modify the priority order.
+
+    Warning
+    -------
+    Result is cached on first call. If devices change during runtime (rare),
+    restart the Python process.
     """
     try:
         if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
@@ -89,12 +120,52 @@ def get_distributed_backend(accelerator: str) -> str:
     - Gloo: Facebook's backend, works on CPU and MPS (more portable)
 
     Using NCCL on non-NVIDIA hardware will cause crashes.
+
+    Warning
+    -------
+    Note that MPS does NOT support distributed training at all. This function
+    returns "gloo" for compatibility, but you should check `supports_distributed()`
+    before attempting to use DDP strategies.
     """
     if accelerator == "gpu":
         return "nccl"
     else:
-        # MPS and CPU use gloo
+        # MPS and CPU use gloo (but note: MPS doesn't support DDP at all)
         return "gloo"
+
+
+def supports_distributed(accelerator: str) -> bool:
+    """
+    Check if the given accelerator supports distributed training (DDP).
+
+    Parameters
+    ----------
+    accelerator : str
+        The accelerator type: "mps", "gpu", or "cpu"
+
+    Returns
+    -------
+    bool
+        True if distributed training is supported, False otherwise
+
+    Notes
+    -----
+    - GPU/CUDA: Fully supports DDP with NCCL backend ✓
+    - CPU: Supports DDP with Gloo backend (but rarely used) ✓
+    - MPS: Does NOT support DDP (single-device only) ✗
+
+    PyTorch's MPS backend is designed for single-device training on Apple Silicon.
+    Attempting to use DDPStrategy with MPS will raise errors.
+
+    Examples
+    --------
+    >>> accelerator = get_accelerator()
+    >>> if supports_distributed(accelerator):
+    ...     strategy = DDPStrategy(...)
+    ... else:
+    ...     strategy = "auto"  # Single device
+    """
+    return accelerator != "mps"
 
 
 def validate_device_config(accelerator: str, devices: int) -> Tuple[str, int]:
@@ -136,13 +207,21 @@ def get_device_info() -> dict:
     -------
     dict
         Dictionary containing device availability and configuration
+
+    Examples
+    --------
+    >>> info = get_device_info()
+    >>> print(f"Using: {info['recommended_accelerator']}")
+    >>> if info['supports_distributed']:
+    ...     print(f"DDP backend: {info['recommended_backend']}")
     """
     info = {
         'cuda_available': False,
         'cuda_device_count': 0,
         'mps_available': False,
         'recommended_accelerator': 'cpu',
-        'recommended_backend': 'gloo'
+        'recommended_backend': 'gloo',
+        'supports_distributed': False
     }
 
     try:
@@ -162,5 +241,6 @@ def get_device_info() -> dict:
     accelerator = get_accelerator()
     info['recommended_accelerator'] = accelerator
     info['recommended_backend'] = get_distributed_backend(accelerator)
+    info['supports_distributed'] = supports_distributed(accelerator)
 
     return info

@@ -18,7 +18,7 @@ from cryostar.utils.ctf_utils import CTFRelion, CTFCryoDRGN
 from cryostar.utils.fft_utils import (fourier_to_primal_2d, primal_to_fourier_2d)
 from cryostar.utils.latent_space_utils import sample_along_pca, get_nearest_point, cluster_kmeans
 from cryostar.utils.misc import (pl_init_exp, create_circular_mask, log_to_current, pretty_dict)
-from cryostar.utils.device_utils import get_accelerator, get_distributed_backend
+from cryostar.utils.device_utils import get_accelerator, get_distributed_backend, supports_distributed
 from cryostar.utils.losses import calc_kl_loss
 from cryostar.utils.ml_modules import VAEEncoder, reparameterize
 from cryostar.utils.mrc_tools import save_mrc
@@ -300,10 +300,18 @@ def train():
 
     # Detect available accelerator: MPS (Apple Silicon), CUDA (NVIDIA), or CPU
     accelerator = get_accelerator()
-    backend = get_distributed_backend(accelerator)
+
+    # MPS doesn't support distributed training - use auto strategy for single device
+    # CUDA/CPU can use DDP for multi-GPU/multi-process training
+    if supports_distributed(accelerator):
+        backend = get_distributed_backend(accelerator)
+        strategy = DDPStrategy(process_group_backend=backend, find_unused_parameters=True)
+    else:
+        # MPS: single-device training only
+        strategy = "auto"
 
     trainer = pl.Trainer(accelerator=accelerator,
-                         strategy=DDPStrategy(process_group_backend=backend, find_unused_parameters=True),
+                         strategy=strategy,
                          logger=False,
                          enable_checkpointing=False,
                          enable_model_summary=False,
