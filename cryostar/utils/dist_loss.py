@@ -154,7 +154,7 @@ def filter_same_chain_pairs(pair_ids, chain_id_arr):
             pair_mask.append(tmp)
 
     if len(pair_mask) > 0:
-        return np.row_stack(pair_mask)
+        return np.vstack(pair_mask)
     else:
         return None
 

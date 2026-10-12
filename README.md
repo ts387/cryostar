@@ -15,6 +15,12 @@ The detailed user guide can be found at [here](https://byte-research.gitbook.io/
 - Create a conda environment: `conda create -n cryostar python=3.9 -y`
 - Clone this repository and install the package: `git clone https://github.com/bytedance/cryostar.git && cd cryostar && pip install .`
 
+### Run on Google Colab
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ts387/cryostar/blob/main/notebooks/CryoSTAR_Colab.ipynb)
+
+[`notebooks/CryoSTAR_Colab.ipynb`](notebooks/CryoSTAR_Colab.ipynb) installs CryoSTAR on a free Colab GPU, downloads the 1AKE tutorial dataset (or uses your own particles and model), trains both stages and visualizes the structures, latent space and density maps.
+
 ## Quick start
 
 ### Preliminary

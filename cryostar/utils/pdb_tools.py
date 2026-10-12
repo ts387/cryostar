@@ -18,7 +18,12 @@ from Bio.PDB.DSSP import DSSP
 from Bio.PDB.parse_pdb_header import parse_pdb_header
 from biotite.structure import AtomArray, AtomArrayStack
 from biotite.structure.io.pdb import PDBFile
-from biotite.structure.io.pdbx import PDBxFile, get_structure
+from biotite.structure.io.pdbx import get_structure
+try:
+    from biotite.structure.io.pdbx import PDBxFile
+except ImportError:
+    # biotite>=1.0 replaced PDBxFile with CIFFile
+    from biotite.structure.io.pdbx import CIFFile as PDBxFile
 from matplotlib.patches import Rectangle
 
 import Bio
