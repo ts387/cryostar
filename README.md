@@ -19,7 +19,7 @@ The detailed user guide can be found at [here](https://byte-research.gitbook.io/
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ts387/cryostar/blob/main/notebooks/CryoSTAR_Colab.ipynb)
 
-[`notebooks/CryoSTAR_Colab.ipynb`](notebooks/CryoSTAR_Colab.ipynb) installs CryoSTAR on a free Colab GPU, downloads the 1AKE tutorial dataset (or uses your own particles and model), trains both stages and visualizes the structures, latent space and density maps.
+[`notebooks/CryoSTAR_Colab.ipynb`](notebooks/CryoSTAR_Colab.ipynb) installs CryoSTAR on a free Colab GPU, downloads the 1AKE tutorial dataset (or uses your own particles and model, with poses from a RELION/cryoSPARC `.star` file or cryoDRGN's `pose.pkl`/`ctf.pkl`), checks the model's position, hand and the particles' contrast against the data, trains both stages and visualizes the structures, latent space and density maps.
 
 ## Quick start
 
