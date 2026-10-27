@@ -170,6 +170,9 @@ class CryoEMTask(pl.LightningModule):
         if cfg.extra_input_data_attr.use_domain:
             log_to_current("use domain instead of chain!")
             domain_id = np.load(cfg.extra_input_data_attr.domain_path)
+            if len(domain_id) != num_pts:
+                raise ValueError(f"{cfg.extra_input_data_attr.domain_path} has {len(domain_id)} domain labels, "
+                                 f"but the reference model has {num_pts} residues")
             cutoff_pairs = find_quaint_cutoff_pairs(meta.coord, domain_id, meta.res_id, cfg.loss.intra_chain_cutoff,
                                                     cfg.loss.inter_chain_cutoff, cfg.loss.intra_chain_res_bound)
         else:
