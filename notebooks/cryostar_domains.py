@@ -104,7 +104,7 @@ def _domain_runs(values):
 
 
 def domain_segments(chain_id, res_id, mask, limit=6):
-    """The residues selected by `mask`, as text such as 'C:1-107, C:338-540' (chains in model order)."""
+    """The residues selected by `mask`, as text such as 'C:1-107, C:325-540' (chains in model order)."""
     chain_id, res_id, mask = np.asarray(chain_id), np.asarray(res_id), np.asarray(mask, dtype=bool)
     parts = []
     for c in dict.fromkeys(chain_id[mask].tolist()):
